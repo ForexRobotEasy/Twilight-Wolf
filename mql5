@@ -1,0 +1,61 @@
+
+// Developer: Forex Robot Easy Team
+// Site: forexroboteasy.com
+// Program Name: Twilight Wolf
+
+// Include necessary libraries and dependencies
+#include <Trade/Trade.mqh>
+
+// Define constants for time frame and market analysis
+const datetime START_TIME = D'21:00:00';   // Start of analysis time frame
+const datetime END_TIME = D'23:00:00';     // End of analysis time frame
+const double VOLATILITY_THRESHOLD = 0.001; // Minimum volatility required for trading
+
+// Define global variables
+datetime lastTradeTime; // Last trade execution time
+
+// Initialize trade object
+CTrade trade;
+
+// Entry point of the program
+void OnTick()
+{
+    // Check if it's within the analysis time frame
+    if (TimeCurrent() >= START_TIME && TimeCurrent() <= END_TIME)
+    {
+        // Check if enough time has passed since the last trade execution
+        if (TimeCurrent() - lastTradeTime >= PeriodSeconds(PERIOD_M1))
+        {
+            // Perform market analysis
+            double volatility = iStdDev(NULL, 0, 14, 0, MODE_SMA, PRICE_CLOSE, 0); // Calculate volatility
+            double price = MarketInfo(Symbol(), MODE_BID); // Get current price
+
+            // Check if conditions for trading are met
+            if (volatility >= VOLATILITY_THRESHOLD)
+            {
+                // Determine trade direction (buy or sell)
+                ENUM_ORDER_TYPE tradeType = (price > iMA(NULL, 0, 14, 0, MODE_SMA, PRICE_CLOSE, 0)) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+
+                // Calculate lot size based on available balance and risk tolerance
+                double lotSize = AccountBalance() * 0.01;
+
+                // Set stop-loss and take-profit levels
+                double stopLoss = price - 50 * SymbolInfoDouble(Symbol(), SYMBOL_TRADE_TICK_SIZE);
+                double takeProfit = price + 50 * SymbolInfoDouble(Symbol(), SYMBOL_TRADE_TICK_SIZE);
+
+                // Execute trade
+                trade.PositionOpen(Symbol(), tradeType, lotSize, price, stopLoss, takeProfit);
+
+                // Update last trade execution time
+                lastTradeTime = TimeCurrent();
+            }
+        }
+    }
+}
+
+// Program termination
+void OnDeinit(const int reason)
+{
+    // Close all open positions before terminating the program
+    trade.PositionCloseAll();
+}
